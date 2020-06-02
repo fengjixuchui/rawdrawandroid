@@ -13,8 +13,6 @@ With this framework you get a demo which has:
  * Permissions support for using things like sound. Example in https://github.com/cnlohr/cnfa
  * Directly access USB devices.  Example in https://github.com/cnlohr/androidusbtest
 
-Youtube Video:
-
 [![Youtube Video](http://img.youtube.com/vi/Cz_LvaN36Ag/0.jpg)](http://www.youtube.com/watch?v=Cz_LvaN36Ag "")
 
 DISCLAIMER: I take no warranty or responsibility for this code.  Use at your own risk.  I've never released an app on the app store, so there may be some fundamental issue with using this toolset to make commercial apps!
@@ -121,12 +119,18 @@ make run
 ```
 
 # If you are going to use this
- * Check out the example here: https://github.com/cnlohr/rawdrawandroidexample
- * You may want to copy-and-paste this project, but, you could probably use it as a submodule.  You may also want to copy-and-paste the submodule.
- * You *MUST* override the app name.  See in Makefile `APPNAME` - you should be able to include this project's makefile and override that.  You must also update `AndroidManifest.xml` with whatever name and org you plan to use.  That means updating all three fields. Both `android:name` fields and the `package` field in the header.
- * If you are using permission you have to prompt for, you must both add it to your `AndroidManifest.xml` as well as check if you have it, and if not, prompt the user.  See helper functions below.  You can see an example of this with `sound_android.c` from ColorChord.  https://github.com/cnlohr/colorchord/blob/master/colorchord2/sound_android.c
-  * Be sure to uninstall any previously installed apps which would look like this app, if you have a different build by the same name signed with another key, bad things will happen.
- * You can see your log with:
+* Check out the example here: https://github.com/cnlohr/rawdrawandroidexample
+* You may want to copy-and-paste this project, but, you could probably use it as a submodule.  You may also want to copy-and-paste the submodule.
+* You *MUST* override the app name.  
+  - See in Makefile `APPNAME` and `PACKAGENAME` you should be able to include this project's makefile and override that.
+  - You must also update `AndroidManifest.xml` with whatever name and org you plan to use.
+  - You will need to update: `package` in `<manifest>` to be your `PACKAGENAME` variable in Makefile.
+  - Both `android:label` labels need to reflect your new app name.  They are in your `<application>` and `<activity>` sections.
+  - Update the `android:value` field in `android.app.lib_name`
+ 
+* If you are using permission you have to prompt for, you must both add it to your `AndroidManifest.xml` as well as check if you have it, and if not, prompt the user.  See helper functions below.  You can see an example of this with `sound_android.c` from ColorChord.  https://github.com/cnlohr/colorchord/blob/master/colorchord2/sound_android.c
+* Be sure to uninstall any previously installed apps which would look like this app, if you have a different build by the same name signed with another key, bad things will happen.
+* You can see your log with:
 ```
 adb logcat
 ```
@@ -138,7 +142,7 @@ adb logcat | grep UnsatisfiedLinkError
 
 # Helper functions
 
-Because we are doing this entirelly in the NDK, with the JNI, we won't have the luxury of writing any Java/Kotlin code and calling it.  That means all of the examples online have to be heavily marshalled.  In rawdraw's EGL driver, we have many examples of how to do that.  That said, you can use the following functions which get you most of the way there.
+Because we are doing this entirelly in the NDK, with the JNI, we won't have the luxury of writing any Java/Kotlin code and calling it.  That means all of the examples online have to be heavily marshalled.  In rawdraw's EGL driver, we have many examples of how to do that.  That said, you can use the following functions which get you most of the way there. 
 
 `struct android_app * gapp;`
 
@@ -152,6 +156,9 @@ Because we are doing this entirelly in the NDK, with the JNI, we won't have the 
 
 `int android_width, android_height;`
 
+`extern int android_sdk_version; //Derived at start from property ro.build.version.sdk`
+
+
 # Departures from regular rawdraw.
 
 Also, above and beyond rawdraw, you *must* implement the following two functions to handle when your apps is suspended or resumed.
@@ -163,7 +170,7 @@ In addition to that, the syntax of `HandleMotion(...)` is different, in that ins
 
 # Google Play
 
-**WARNING** I am unsure if you actually can publish to Google Play!
+As it turns out, Google somehow lets apps built with this onto the store.  Like ColorChord https://github.com/cnlohr/colorchord.
 
 ## Part 0: Changes to your app.
 
@@ -171,6 +178,9 @@ In addition to that, the syntax of `HandleMotion(...)` is different, in that ins
 2. You will need to add a versionCode to your `AndroidManifest.xml`.  In your `AndroidManifest.xml`, add `android:versionCode="integer"` to the tag where "integer" is a version number.
 3. In your `AndroidManifest.xml`, change `android:debuggable` to false.
 4. You may want to support multiple platforms natively.  Add the following to your `Makefile`: `TARGETS:=makecapk/lib/arm64-v8a/lib$(APPNAME).so makecapk/lib/armeabi-v7a/lib$(APPNAME).so makecapk/lib/x86/lib$(APPNAME).so makecapk/lib/x86_64/lib$(APPNAME).so`
+5. You will need to specify target and Min SDK in your `AndroidManifest.xml`  See: `<uses-sdk android:minSdkVersion="22" android:targetSdkVersion="28" />`
+6. Those target / min versions must match your Makefile.  Note that without a `minSdkVerson` google will wrongfully assume 1.  This is dangerous.  Be sure to test your app on a device with whichever minSdkVersion you've specified.
+7.  You will need to disable the debuggable flag in your app.  See `<application android:debuggable="false" ...>`
 
 
 Get a google play account.  Details surrounding app creation are outside the scope of this readme.  When getting ready to upload your APK.
