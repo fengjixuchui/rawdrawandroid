@@ -1,23 +1,24 @@
 #Copyright (c) 2019-2020 <>< Charles Lohr - Under the MIT/x11 or NewBSD License you choose.
 # NO WARRANTY! NO GUARANTEE OF SUPPORT! USE AT YOUR OWN RISK
 
-all : makecapk.apk 
+all : makecapk.apk
 
 .PHONY : push run
 
 # WARNING WARNING WARNING!  YOU ABSOLUTELY MUST OVERRIDE THE PROJECT NAME
 # you should also override these parameters, get your own signatre file and make your own manifest.
 APPNAME?=cnfgtest
+LABEL?=$(APPNAME)
 APKFILE ?= $(APPNAME).apk
 PACKAGENAME?=org.yourorg.$(APPNAME)
 RAWDRAWANDROID?=.
 RAWDRAWANDROIDSRCS=$(RAWDRAWANDROID)/android_native_app_glue.c
 SRC?=test.c
 
-#We've tested it with android version 22, 24, 28 and 29. 
+#We've tested it with android version 22, 24, 28, 29 and 30.
 #You can target something like Android 28, but if you set ANDROIDVERSION to say 22, then
 #Your app should (though not necessarily) support all the way back to Android 22. 
-ANDROIDVERSION?=29
+ANDROIDVERSION?=30
 ANDROIDTARGET?=$(ANDROIDVERSION)
 #Default is to be strip down, but your app can override it.
 CFLAGS?=-ffunction-sections -Os -fdata-sections -Wall -fvisibility=hidden
@@ -52,7 +53,7 @@ SDK_LOCATIONS += $(ANDROID_HOME) $(ANDROID_SDK_ROOT) ~/Android/Sdk $(HOME)/Libra
 #Just a little Makefile witchcraft to find the first SDK_LOCATION that exists
 #Then find an ndk folder and build tools folder in there.
 ANDROIDSDK?=$(firstword $(foreach dir, $(SDK_LOCATIONS), $(basename $(dir) ) ) )
-NDK?=$(firstword $(wildcard $(ANDROIDSDK)/ndk/*) $(wildcard $(ANDROIDSDK)/ndk-bundle/*) )
+NDK?=$(firstword $(ANDROID_NDK) $(ANDROID_NDK_HOME) $(wildcard $(ANDROIDSDK)/ndk/*) $(wildcard $(ANDROIDSDK)/ndk-bundle/*) )
 BUILD_TOOLS?=$(lastword $(wildcard $(ANDROIDSDK)/build-tools/*) )
 
 # fall back to default Android SDL installation location if valid NDK was not found
@@ -143,20 +144,33 @@ makecapk/lib/x86_64/lib$(APPNAME).so : $(ANDROIDSRCS)
 
 
 
-makecapk.apk : $(TARGETS) $(EXTRA_ASSETS_TRIGGER)
+makecapk.apk : $(TARGETS) $(EXTRA_ASSETS_TRIGGER) AndroidManifest.xml
 	mkdir -p makecapk/assets
-	echo "Test asset file" > makecapk/assets/asset.txt
+	cp -r Sources/assets/* makecapk/assets
 	rm -rf temp.apk
 	$(AAPT) package -f -F temp.apk -I $(ANDROIDSDK)/platforms/android-$(ANDROIDVERSION)/android.jar -M AndroidManifest.xml -S Sources/res -A makecapk/assets -v --target-sdk-version $(ANDROIDTARGET)
 	unzip -o temp.apk -d makecapk
 	rm -rf makecapk.apk
-	cd makecapk && zip -D9r ../makecapk.apk .
+	cd makecapk && zip -D9r ../makecapk.apk . && zip -D0r ../makecapk.apk ./resources.arsc ./AndroidManifest.xml
 	jarsigner -sigalg SHA1withRSA -digestalg SHA1 -verbose -keystore $(KEYSTOREFILE) -storepass $(STOREPASS) makecapk.apk $(ALIASNAME)
 	rm -rf $(APKFILE)
 	$(BUILD_TOOLS)/zipalign -v 4 makecapk.apk $(APKFILE)
+	#Using the apksigner in this way is only required on Android 30+
+	$(BUILD_TOOLS)/apksigner sign --key-pass pass:$(STOREPASS) --ks-pass pass:$(STOREPASS) --ks $(KEYSTOREFILE) $(APKFILE)
 	rm -rf temp.apk
 	rm -rf makecapk.apk
 	@ls -l $(APKFILE)
+
+manifest: AndroidManifest.xml
+
+AndroidManifest.xml :
+	rm -rf AndroidManifest.xml
+	PACKAGENAME=$(PACKAGENAME) \
+		ANDROIDVERSION=$(ANDROIDVERSION) \
+		ANDROIDTARGET=$(ANDROIDTARGET) \
+		APPNAME=$(APPNAME) \
+		LABEL=$(LABEL) envsubst '$$ANDROIDTARGET $$ANDROIDVERSION $$APPNAME $$PACKAGENAME $$LABEL' \
+		< AndroidManifest.xml.template > AndroidManifest.xml
 
 
 uninstall : 
@@ -164,7 +178,7 @@ uninstall :
 
 push : makecapk.apk
 	@echo "Installing" $(PACKAGENAME)
-	$(ADB) install $(APKFILE)
+	$(ADB) install -r $(APKFILE)
 
 run : push
 	$(eval ACTIVITYNAME:=$(shell $(AAPT) dump badging $(APKFILE) | grep "launchable-activity" | cut -f 2 -d"'"))

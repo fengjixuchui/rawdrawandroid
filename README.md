@@ -3,7 +3,8 @@
 Ever wanted to write C code and run it on Android?  Sick of multi-megabyte
 packages just to do the most basic of things.  Well, this is a demo of how
 to make your own APKs and build, install and automatically run them in about
-2 seconds, and with an apk size of about 25kB.
+2 seconds, and with an apk size of about 25kB (with API 26).  API 30 (Android R+)
+is unfortunately at 45kB to support ARM64 + ARM32.
 
 With this framework you get a demo which has:
  * To make a window with OpenGL ES support
@@ -17,7 +18,7 @@ With this framework you get a demo which has:
 
 DISCLAIMER: I take no warranty or responsibility for this code.  Use at your own risk.  I've never released an app on the app store, so there may be some fundamental issue with using this toolset to make commercial apps!
 
-For support, you can try chatting with folks on my discord: https://discord.com/invite/ZUWdwXk
+For support, you can try chatting with folks on my discord: https://discord.com/invite/CCeyWyZ
 
 # Why?
 
@@ -36,6 +37,8 @@ Most of the testing was done on Linux, however @AEFeinstein has done at least cu
 ## Linux install Android Studio with NDK.
 
 This set of steps describes how to install Android Studio with NDK support in Linux.  It uses the graphical installer and installs a lot more stuff than the instructions below.  You may be able to mix-and-match these two sets of instructions.  For instance if you are on Linux but don't want to sacrifice 6 GB of disk to the Googs.
+
+**NOTE** You probably should use the WSL instructions instead of these instructions as it will produc a more lean installation.
 
 1) Install prerequisites:
 ```
@@ -79,7 +82,7 @@ In order to push the APK to your phone, you need `adb` installed in Windows as w
 ```
 # sudo apt install openjdk-11-jdk-headless adb unzip zip
 ```
-2. Download "Command line tools only": https://developer.android.com/studio#downloads - you can get a URL and use `wget` in WSL to download the tools by clicking on the "Linux" toolset, then right-clicking on the accept link and saying copy link to location.  Then you can say `wget <link>` in WSL.
+2. Download "Command line tools only": https://developer.android.com/studio#downloads - you can get a URL and use `wget` in WSL to download the tools by clicking on the **"Linux"** toolset, then right-clicking on the accept link and saying copy link to location.  Then you can say `wget <link>` in WSL.
 3. Create a folder for the Android SDK and export it. You may want to add that export to your `~/.bashrc`:
 ```
 # mkdir ~/android-sdk
@@ -88,10 +91,26 @@ In order to push the APK to your phone, you need `adb` installed in Windows as w
 ```
 4. Unzip the "Command line tools only" file so that `tools` is in your brand new `android-sdk` folder.
 5. Install the SDK and NDK components:
+
+If you are using **Android 29 or older**, do this.
 ```
 # yes | $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=${ANDROID_HOME} --licenses
-# $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=${ANDROID_HOME} "build-tools;29.0.3" "cmake;3.10.2.4988404" "ndk;21.1.6352462" "patcher;v4" "platform-tools" "platforms;android-24" "tools"
+# $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=${ANDROID_HOME} "build-tools;29.0.3" "cmake;3.10.2.4988404" "ndk;21.1.6352462" "patcher;v4" "platform-tools" "platforms;android-30" "tools"
 ```
+
+If your platform command-line tools are **30 or newer**, the command-line tools will be placed in the cmdline-tools folder. So, you will need to execute the following:
+```
+# yes | $ANDROID_HOME/cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_HOME} --licenses
+# $ANDROID_HOME/cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_HOME} "build-tools;30.0.2" "cmake;3.10.2.4988404" "ndk;21.3.6528147" "patcher;v4" "platform-tools" "platforms;android-30" "tools"
+```
+
+**NOTE** If you are upgrading NDK versions, you may need to remove old versions, this Makefile does not necessarily do the best job at auto-selecting NDK versions.
+
+You can see all avialable versions of software with this command:
+```
+$ANDROID_HOME/cmdline-tools/bin/sdkmanager --list --sdk_root=${ANDROID_HOME}
+```
+
 6. Install the Windows ADB toolset.
 ```
 mkdir -p $ANDROID_HOME/windows
@@ -101,6 +120,9 @@ unzip platform-tools_r24.0.4-windows.zip
 export ADB=$ANDROID_HOME/windows/platform-tools/adb.exe
 printf "\nexport ADB=$ANDROID_HOME/windows/platform-tools/adb.exe\n" >> ~/.bashrc
 ```
+
+Alternatively, you may want to use https://dl.google.com/android/repository/platform-tools_r30.0.5-windows.zip for r30.
+
 6. NOTE: because of updates to environment variables, you may want to close and re-open your WSL terminal.
 7. Download this repo
 ```
